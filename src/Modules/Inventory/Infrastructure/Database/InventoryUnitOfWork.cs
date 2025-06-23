@@ -1,43 +1,33 @@
 ﻿using Inventory.Application.Abstractions.Data;
-using Inventory.Application.OutboxMessageTasks;
+using Inventory.Application.OutboxMessages;
 using Inventory.Infrastructure.DomainEvents;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Inventory.SharedKernel;
 
 namespace Inventory.Infrastructure.Database;
 
-public class FinanceUnitOfWork(DbContextOptions<FinanceUnitOfWork> options,
+public class InventoryUnitOfWork(InventoryDbContext dbContext,
     IDomainEventsDispatcher domainEventsDispatcher,
-    IOutboxMessageWeightRepository iOutboxMessageWeightRepository,
-    IOutboxMessageRepository iOutboxMessageRepository) : DbContext(options), IUnitOfWork
+    IOutboxMessageQueryRepository iOutboxMessageQueryRepository) : IUnitOfWork
 {
-    public IOutboxMessageWeightRepository OutboxMessageWeightRepository { get; } = iOutboxMessageWeightRepository;
-    public IOutboxMessageRepository OutboxMessageRepository { get; } = iOutboxMessageRepository;
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(FinanceUnitOfWork).Assembly);
-
-        modelBuilder.HasDefaultSchema(Schemas.Default);
-    }
+    public IOutboxMessageQueryRepository OutboxMessageQueryRepository { get; } = iOutboxMessageQueryRepository;
 
     public async Task<long> CommitAsync(CancellationToken cancellationToken = default)
     {
         await PublishDomainEventsAsync();
 
-        return await base.SaveChangesAsync(cancellationToken);
+        return await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<ITransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
-        IDbContextTransaction transaction = await base.Database.BeginTransactionAsync(cancellationToken);
+        IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         return new EfTransaction(transaction);
     }
 
     private async Task PublishDomainEventsAsync()
     {
-        var domainEvents = ChangeTracker
+        var domainEvents = dbContext.ChangeTracker
             .Entries<AggregateRoot>()
             .Select(entry => entry.Entity)
             .SelectMany(entity =>

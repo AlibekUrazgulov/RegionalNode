@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -15,6 +16,8 @@ builder.Configuration.AddConfigurationValues(builder.Environment.EnvironmentName
 builder.Services.AddSwaggerGenWithAuth();
 
 builder.Host.UseSerilogWithConfiguration();
+
+builder.Services.AddAuthentication(builder.Configuration);
 
 builder.Services
     .AddPresentation()
@@ -59,5 +62,6 @@ await app.RunAsync();
 
 namespace Web.Api
 {
+    [SuppressMessage("ReSharper", "PartialTypeWithSinglePart")]
     public partial class Program;
 }
